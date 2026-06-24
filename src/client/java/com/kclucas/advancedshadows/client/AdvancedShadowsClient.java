@@ -16,7 +16,7 @@ public class AdvancedShadowsClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		// Keybind: F7 (wie Light Overlay) zum Togglen
+
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.advancedshadows.toggle",
                 InputUtil.Type.KEYSYM,
