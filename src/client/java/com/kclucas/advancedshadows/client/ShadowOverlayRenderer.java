@@ -1,6 +1,7 @@
 package com.kclucas.advancedshadows.client;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.LeavesBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
@@ -43,9 +44,16 @@ public class ShadowOverlayRenderer {
                 for (int dy = -RENDER_Y_RADIUS; dy <= RENDER_Y_RADIUS; dy++) {
                     BlockPos pos = playerPos.add(dx, dy, dz);
 
-                    // Overlay-Position muss Luft sein
-                    if (!world.getBlockState(pos).isAir()) continue;
-                    // Block darunter muss solid ODER Leaves sein
+                    var stateAt = world.getBlockState(pos);
+
+                    // Overlay-Position muss Luft oder Wasseroberfläche sein
+                    boolean isAir = stateAt.isAir();
+                    boolean isWaterSurface = stateAt.getBlock() == Blocks.WATER
+                            && world.getBlockState(pos.up()).getBlock() != Blocks.WATER;
+
+                    if (!isAir && !isWaterSurface) continue;
+
+                    // Block darunter muss solid, Leaves oder Wasser sein
                     if (!isWalkableSurface(world, pos.down())) continue;
 
                     int skyLight = world.getLightLevel(LightType.SKY, pos);
@@ -77,13 +85,12 @@ public class ShadowOverlayRenderer {
         matrices.pop();
     }
 
-    /**
-     * Gibt true zurück wenn der Block als Oberfläche für das Overlay gilt:
-     * solide Blöcke (Erde, Stein, …) ODER Leaves (Baumblätter).
-     */
+
     private static boolean isWalkableSurface(World world, BlockPos pos) {
         var state = world.getBlockState(pos);
-        return state.isSolidBlock(world, pos) || state.getBlock() instanceof LeavesBlock;
+        return state.isSolidBlock(world, pos)
+                || state.getBlock() instanceof LeavesBlock
+                || state.getBlock() == Blocks.WATER;
     }
 
     private static void quad(VertexConsumer v, Matrix4f m,
