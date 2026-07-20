@@ -4,16 +4,25 @@
 	"version": "${version}",
 	"name": "AdvancedShadows",
 	"description": "Clientside shadow overlay for finding skybases. Shows sky light levels as colored carpets.",
-	"authors": ["KCLucas"],
+	"authors": [
+		"KCLucas"
+	],
 	"contact": {},
 	"license": "MIT",
 	"icon": "assets/advancedshadows/icon.png",
 	"environment": "client",
 	"entrypoints": {
-		"main": ["com.kclucas.advancedshadows.AdvancedShadows"],
-		"client": ["com.kclucas.advancedshadows.client.AdvancedShadowsClient"]
+		"main": [
+			"com.kclucas.advancedshadows.AdvancedShadows"
+		],
+		"client": [
+			"com.kclucas.advancedshadows.client.AdvancedShadowsClient"
+		]
 	},
-	"mixins": ["advancedshadows.mixins.json", "advancedshadows.client.mixins.json"],
+	"mixins": [
+		"advancedshadows.mixins.json",
+		"advancedshadows.client.mixins.json"
+	],
 	"depends": {
 		"fabricloader": ">=0.15.0",
 		"minecraft": "~1.21.11",

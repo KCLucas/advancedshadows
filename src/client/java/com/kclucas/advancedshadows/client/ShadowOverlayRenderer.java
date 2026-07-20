@@ -1,6 +1,7 @@
 package com.kclucas.advancedshadows.client;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.LeavesBlock;
 import net.minecraft.client.MinecraftClient;
@@ -14,8 +15,6 @@ import org.joml.Matrix4f;
 
 public class ShadowOverlayRenderer {
 
-    private static final int RENDER_RADIUS = 16;
-    private static final int RENDER_Y_RADIUS = 4;
     private static final float OVERLAY_Y_OFFSET = 0.005f;
     private static final float ALPHA = 0.6f;
 
@@ -25,6 +24,9 @@ public class ShadowOverlayRenderer {
         if (world == null || client.player == null) return;
 
         if (!world.getDimension().hasSkyLight()) return;
+
+        int renderRadius = ModConfig.get().renderRadius;
+        int renderYRadius = ModConfig.get().renderYRadius;
 
         BlockPos playerPos = client.player.getBlockPos();
         Vec3d cam = client.gameRenderer.getCamera().getCameraPos();
@@ -39,42 +41,41 @@ public class ShadowOverlayRenderer {
         Matrix4f m = matrices.peek().getPositionMatrix();
         VertexConsumer fill = consumers.getBuffer(RenderLayers.debugFilledBox());
 
-        for (int dx = -RENDER_RADIUS; dx <= RENDER_RADIUS; dx++) {
-            for (int dz = -RENDER_RADIUS; dz <= RENDER_RADIUS; dz++) {
-                for (int dy = -RENDER_Y_RADIUS; dy <= RENDER_Y_RADIUS; dy++) {
+        for (int dx = -renderRadius; dx <= renderRadius; dx++) {
+            for (int dz = -renderRadius; dz <= renderRadius; dz++) {
+                for (int dy = -renderYRadius; dy <= renderYRadius; dy++) {
                     BlockPos pos = playerPos.add(dx, dy, dz);
 
                     var stateAt = world.getBlockState(pos);
 
                     boolean isAir = stateAt.isAir();
-                    // Wasseroberfläche: dieser Block ist Wasser, Block drüber ist kein Wasser
-                    boolean isWaterSurface = stateAt.getBlock() == Blocks.WATER
-                            && world.getBlockState(pos.up()).getBlock() != Blocks.WATER;
+                    // Wasseroberfläche: source oder flowing, aber kein Wasser drüber
+                    boolean isWaterSurface = isWater(stateAt)
+                            && !isWater(world.getBlockState(pos.up()));
 
                     if (!isAir && !isWaterSurface) continue;
 
-                    if (isAir && world.getBlockState(pos.down()).getBlock() == Blocks.WATER) continue;
-
+                    // Luft direkt über Wasser überspringen — Wasser rendert sich selbst
+                    if (isAir && isWater(world.getBlockState(pos.down()))) continue;
 
                     if (!isWalkableSurface(world, pos.down())) continue;
 
-
-                    int skyLight = world.getLightLevel(LightType.SKY, pos);
+                    BlockPos lightPos = isWaterSurface ? pos.up() : pos;
+                    int skyLight = world.getLightLevel(LightType.SKY, lightPos);
 
                     float r, g, b;
 
                     if (skyLight == 0) {
-                        r = 1.0f; g = 0.1f; b = 0.1f;       // Rot   – kein Skylight
+                        r = 1.0f; g = 0.1f; b = 0.1f;
                     } else if (skyLight <= 7) {
-                        r = 1.0f; g = 0.5f; b = 0.0f;        // Orange – stark abgeschattet
+                        r = 1.0f; g = 0.5f; b = 0.0f;
                     } else if (skyLight <= 14) {
-                        r = 1.0f; g = 1.0f; b = 0.0f;        // Gelb  – leicht abgeschattet
+                        r = 1.0f; g = 1.0f; b = 0.0f;
                     } else {
-                        continue;                              // Volles Himmelslicht → kein Overlay
+                        continue;
                     }
 
                     double x1 = pos.getX() - cam.x;
-                    // Wasser: Overlay auf Oberkante (+1.0), Luft: auf Unterkante (+0.0)
                     double surfaceY = isWaterSurface ? pos.getY() + 1.0 : pos.getY();
                     double y1 = surfaceY + OVERLAY_Y_OFFSET - cam.y;
                     double x2 = x1 + 1.0;
@@ -90,16 +91,17 @@ public class ShadowOverlayRenderer {
         matrices.pop();
     }
 
-    /**
-     * Gibt true zurück wenn der Block als Untergrund für das Overlay gilt:
-     * solide Blöcke oder Leaves. Wasser absichtlich NICHT hier —
-     * Wasser wird als Overlay-Position selbst behandelt (isWaterSurface).
-     */
+    private static boolean isWater(BlockState state) {
+        return !state.getFluidState().isEmpty()
+                && state.getFluidState().isOf(net.minecraft.fluid.Fluids.WATER)
+                || state.getFluidState().isOf(net.minecraft.fluid.Fluids.FLOWING_WATER);
+    }
+
     private static boolean isWalkableSurface(World world, BlockPos pos) {
         var state = world.getBlockState(pos);
         return state.isSolidBlock(world, pos)
                 || state.getBlock() instanceof LeavesBlock
-                || state.getBlock() == Blocks.WATER;
+                || isWater(state);
     }
 
     private static void quad(VertexConsumer v, Matrix4f m,
